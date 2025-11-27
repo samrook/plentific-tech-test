@@ -394,6 +394,48 @@ class UserClientTest extends TestCase
         $this->service->listUsers(1);
     }
 
+    #[Test]
+    public function throwsAnExceptionWhenApiResponseIsEmpty(): void
+    {
+        $this->guzzle
+            ->shouldReceive('request')
+            ->once()
+            ->andReturn($this->makeResponse(null, 200));
+
+        $this->expectException(ApiConnectionException::class);
+        $this->expectExceptionMessage('API response was empty.');
+
+        $this->service->getUser(1);
+    }
+
+    #[Test]
+    public function throwsAnExceptionWhenApiResponseIsNotValidJson(): void
+    {
+        $this->guzzle
+            ->shouldReceive('request')
+            ->once()
+            ->andReturn(new Response(200, body: 'invalid json'));
+
+        $this->expectException(ApiConnectionException::class);
+        $this->expectExceptionMessage('API response is not valid JSON.');
+
+        $this->service->getUser(1);
+    }
+
+    #[Test]
+    public function throwsAnExceptionWhenApiResponseIsNotAJsonObject(): void
+    {
+        $this->guzzle
+            ->shouldReceive('request')
+            ->once()
+            ->andReturn(new Response(200, body: '123'));
+
+        $this->expectException(ApiConnectionException::class);
+        $this->expectExceptionMessage('API response did not contain a JSON object.');
+
+        $this->service->getUser(1);
+    }
+
     public static function malformedUserListDataDataProvider(): array
     {
         return [
