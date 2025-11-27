@@ -11,6 +11,8 @@ use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\ServerException;
 use SamRook\ReqResClient\DTO\UserDTO;
+use SamRook\ReqResClient\Exceptions\ApiConnectionException;
+use SamRook\ReqResClient\Exceptions\UserNotFoundException;
 
 class UserClient
 {
@@ -45,8 +47,10 @@ class UserClient
                 flags: JSON_THROW_ON_ERROR,
             );
 
-            // throw api connection exception if $data not array
-            // throw api connection exception if $data['data'] does not exist or is not array
+            $userData = $data['data'] ?? null;
+            if (!is_array($userData)) {
+                throw new ApiConnectionException('User data not found in API response.');
+            }
 
             /** @var array{id: int, email: string, first_name: string, last_name: string, avatar: string} $userData */
             $userData = $data['data'];
@@ -54,14 +58,11 @@ class UserClient
             return UserDTO::fromArray($userData);
         } catch (ClientException $e) {
             if (404 === $e->getResponse()->getStatusCode()) {
-                // user not found
-                throw new Exception("User with ID {$id} was not found.");
+                throw new UserNotFoundException("User with ID {$id} not found.");
             }
-            // api connection
-            throw new Exception($e->getMessage(), $e->getCode(), $e);
+            throw new ApiConnectionException($e->getMessage(), $e->getCode(), $e);
         } catch (ConnectException | ServerException $e) {
-            // api conncetion
-            throw new Exception('Failed to connect to ReqRes API', 0, $e);
+            throw new ApiConnectionException('Failed to connect to ReqRes API', 0, $e);
         }
     }
 }
