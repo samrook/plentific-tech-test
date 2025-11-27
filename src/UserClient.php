@@ -36,16 +36,7 @@ class UserClient
     public function getUser(int $id): UserDTO
     {
         try {
-            $response = $this->httpClient->request('GET', "users/{$id}");
-            $contents = $response->getBody()->getContents();
-
-            // throw api connection exception if content empty
-
-            $data = json_decode(
-                json: $contents,
-                associative: true,
-                flags: JSON_THROW_ON_ERROR,
-            );
+            $data = $this->makeRequest('GET', "users/{$id}");
 
             $userData = $data['data'] ?? null;
             if (!is_array($userData)) {
@@ -64,5 +55,50 @@ class UserClient
         } catch (ConnectException | ServerException $e) {
             throw new ApiConnectionException('Failed to connect to ReqRes API', 0, $e);
         }
+    }
+
+    /**
+     * @param array{"name": string, "job": string} $data
+     */
+    public function createUser(array $data): int
+    {
+        try {
+            $responseData = $this->makeRequest('POST', 'users', [
+                'json' => $data
+            ]);
+
+            if (!isset($responseData['id']) || !is_numeric($responseData['id'])) {
+                throw new ApiConnectionException('Invalid response when creating user: ID missing or not numeric.');
+            }
+            return (int) $responseData['id'];
+        } catch (ConnectException | ServerException $e) {
+            throw new ApiConnectionException('Failed to create user on ReqRes API', 0, $e);
+        }
+    }
+
+    private function makeRequest(string $method, string $uri, array $options = []): array
+    {
+        $response = $this->httpClient->request($method, $uri, $options);
+        $contents = $response->getBody()->getContents();
+        if ($contents === '') {
+            throw new ApiConnectionException('API response was empty.');
+        }
+
+        try {
+            $data = json_decode(
+                json: $contents,
+                associative: true,
+                flags: JSON_THROW_ON_ERROR,
+            );
+        } catch (\JsonException $e) {
+            throw new ApiConnectionException('API response is not valid JSON.', 0, $e);
+        }
+
+        if (!is_array($data)) {
+            throw new ApiConnectionException('API response did not contain a JSON object.');
+        }
+
+        /** @var array<string, mixed> $data */
+        return $data;
     }
 }

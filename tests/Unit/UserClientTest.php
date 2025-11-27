@@ -23,6 +23,7 @@ class UserClientTest extends TestCase
 {
     private const int USER_ID_JANET_WEAVER = 2;
     private const int USER_ID_DOESNT_EXIST = 23;
+    private const int CREATED_USER_ID = 102;
 
     private ClientInterface&MockInterface $guzzle;
     private UserClient $service;
@@ -39,7 +40,7 @@ class UserClientTest extends TestCase
     public function canGetSingleUser(): void
     {
         $userId = self::USER_ID_JANET_WEAVER;
-        $mockResponse = $this->makeResponse('tests/fake-responses/get-user-2.json');
+        $mockResponse = $this->makeResponse('get-user-2');
 
         $this->guzzle
             ->shouldReceive('request')
@@ -120,12 +121,7 @@ class UserClientTest extends TestCase
     public function throwsAnExceptionWhenUserDataIsNotFoundInResponse(): void
     {
         $userId = self::USER_ID_JANET_WEAVER;
-        $mockResponse = new Response(body: json_encode([
-            'name' => 'Sam Rook',
-            'job' => 'Software Engineer',
-            'id' => '102',
-            'createdAt' => '2025-11-27T16:32:32.952Z'
-        ]));
+        $mockResponse = $this->makeResponse('create-user');
 
         $this->guzzle
             ->shouldReceive('request')
@@ -186,9 +182,94 @@ class UserClientTest extends TestCase
         $this->service->getUser($userId);
     }
 
-    private function loadFakeResponse(string $filename): string
+    #[Test]
+    public function canCreateUser(): void
     {
-        return file_get_contents($filename);
+        $mockResponse = $this->makeResponse('create-user', 201);
+        $payload = $this->loadFakeRequest('create-user');
+
+        $this->guzzle
+            ->shouldReceive('request')
+            ->once()
+            ->withArgs(function (string $method, string $uri, array $options) use ($payload): bool {
+                $this->assertSame('POST', $method);
+                $this->assertSame('users', $uri);
+                $this->assertSame(['json' => $payload], $options);
+
+                return true;
+            })
+            ->andReturn($mockResponse);
+
+        $newId = $this->service->createUser($payload);
+
+        $this->assertEquals(self::CREATED_USER_ID, $newId);
+    }
+
+    #[Test]
+    public function throwsAnExceptionWhenCreatedUserIdIsMissing(): void
+    {
+        $payload = $this->loadFakeRequest('create-user');
+        $mockResponse = $this->makeResponse('get-user-2', 201);
+
+        $this->guzzle
+            ->shouldReceive('request')
+            ->once()
+            ->withArgs(function (string $method, string $uri, array $options) use ($payload): bool {
+                $this->assertSame('POST', $method);
+                $this->assertSame('users', $uri);
+                $this->assertSame(['json' => $payload], $options);
+
+                return true;
+            })
+            ->andReturn($mockResponse);
+
+        $this->expectException(ApiConnectionException::class);
+        $this->expectExceptionMessage('Invalid response when creating user: ID missing or not numeric.');
+
+        $this->service->createUser($payload);
+    }
+
+    #[Test]
+    public function throwsAnApiConnectionExceptionWhenCreatingAUserFails(): void
+    {
+        $payload = $this->loadFakeRequest('create-user');
+        $exception = new ConnectException(
+            message: 'Connection timed out',
+            request: $this->makeRequest('POST', 'users', $payload),
+        );
+
+        $this->guzzle
+            ->shouldReceive('request')
+            ->once()
+            ->withArgs(function (string $method, string $uri, array $options) use ($payload): bool {
+                $this->assertSame('POST', $method);
+                $this->assertSame('users', $uri);
+                $this->assertSame(['json' => $payload], $options);
+
+                return true;
+            })
+            ->andThrow($exception);
+
+        $this->expectException(ApiConnectionException::class);
+        $this->expectExceptionMessage('Failed to create user on ReqRes API');
+
+        $this->service->createUser($payload);
+    }
+
+    private function loadFakeResponse(string $name)
+    {
+        return file_get_contents("tests/fake-responses/{$name}.json");
+    }
+
+    private function loadFakeRequest(string $name, bool $asJson = false): array|string|false
+    {
+        $contents = file_get_contents("tests/fake-requests/{$name}.json");
+
+        if ($asJson) {
+            return $contents;
+        }
+
+        return json_decode($contents, true);
     }
 
     private function makeResponse(string|null $filename = null, int $code = 200): Response
