@@ -1,0 +1,38 @@
+{
+    "name": "samrook/reqres-client",
+    "description": "A client to add and fetch users via the ReqRes API.",
+    "type": "library",
+    "require": {
+        "guzzlehttp/guzzle": "^7.10"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^12.4",
+        "phpstan/phpstan": "^2.1",
+        "squizlabs/php_codesniffer": "^4.0",
+        "mockery/mockery": "^1.6"
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "analyse": "vendor/bin/phpstan analyse",
+        "format": "vendor/bin/phpcbf --standard=PSR12 src tests",
+        "check-style": "vendor/bin/phpcs --standard=PSR12 src tests",
+        "check": [
+            "@test",
+            "@analyse",
+            "@check-style"
+        ]
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "SamRook\\ReqResClient\\": "src/",
+            "SamRook\\ReqResClient\\Tests\\": "tests/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Sam Rook",
+            "email": "samr2411@gmail.com"
+        }
+    ]
+}
