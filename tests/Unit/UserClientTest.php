@@ -12,8 +12,10 @@ use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use Mockery;
 use Mockery\MockInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use SamRook\ReqResClient\DTO\UserCollectionDTO;
 use SamRook\ReqResClient\DTO\UserDTO;
 use SamRook\ReqResClient\Exceptions\ApiConnectionException;
 use SamRook\ReqResClient\Exceptions\UserNotFoundException;
@@ -21,6 +23,7 @@ use SamRook\ReqResClient\UserClient;
 
 class UserClientTest extends TestCase
 {
+    private const int USER_ID_GEORGE_BLUTH = 1;
     private const int USER_ID_JANET_WEAVER = 2;
     private const int USER_ID_DOESNT_EXIST = 23;
     private const int CREATED_USER_ID = 102;
@@ -256,7 +259,166 @@ class UserClientTest extends TestCase
         $this->service->createUser($payload);
     }
 
-    private function loadFakeResponse(string $name)
+    #[Test]
+    public function canRetrieveAListOfUsers(): void
+    {
+        $page = 1;
+        $mockResponse = $this->makeResponse("list-users-{$page}");
+
+        $this->guzzle
+            ->shouldReceive('request')
+            ->once()
+            ->with('GET', "users?page={$page}", [])
+            ->andReturn($mockResponse);
+
+        $userCollection = $this->service->listUsers($page);
+
+        $this->assertInstanceOf(UserCollectionDTO::class, $userCollection);
+        $this->assertEquals(1, $userCollection->page);
+        $this->assertEquals(6, $userCollection->perPage);
+        $this->assertEquals(12, $userCollection->total);
+        $this->assertEquals(2, $userCollection->totalPages);
+
+        $this->assertIsArray($userCollection->users);
+        $this->assertCount(6, $userCollection->users);
+        $this->assertContainsOnlyInstancesOf(UserDTO::class, $userCollection->users);
+
+        $this->assertEquals(self::USER_ID_GEORGE_BLUTH, $userCollection->users[0]->id);
+        $this->assertEquals('George', $userCollection->users[0]->firstName);
+        $this->assertEquals(self::USER_ID_JANET_WEAVER, $userCollection->users[1]->id);
+        $this->assertEquals('Janet', $userCollection->users[1]->firstName);
+    }
+
+    #[Test]
+    public function throwsExceptionOnMalformedUserListResponseMissingKeys(): void
+    {
+        $page = 1;
+        $mockResponse = $this->makeResponse('create-user', 200);
+
+        $this->guzzle
+            ->shouldReceive('request')
+            ->once()
+            ->with('GET', "users?page={$page}", [])
+            ->andReturn($mockResponse);
+
+        $this->expectException(ApiConnectionException::class);
+        $this->expectExceptionMessage('Failed to parse user list from API response.');
+
+        $this->service->listUsers($page);
+    }
+
+    #[Test]
+    public function throwsExceptionOnMalformedUserListResponseDataNotArray(): void
+    {
+        $page = 1;
+        $mockResponse = new Response(
+            status: 200,
+            headers: [],
+            body: json_encode([
+                'page' => 1,
+                'per_page' => 1,
+                'total' => 1,
+                'total_pages' => 1,
+                'data' => 'not-an-array'
+            ])
+        );
+
+        $this->guzzle
+            ->shouldReceive('request')
+            ->once()
+            ->with('GET', "users?page={$page}", [])
+            ->andReturn($mockResponse);
+
+        $this->expectException(ApiConnectionException::class);
+        $this->expectExceptionMessage('Failed to parse user list from API response.');
+
+        $this->service->listUsers($page);
+    }
+
+    #[Test]
+    #[DataProvider('malformedUserListDataDataProvider')]
+    public function throwsExceptionOnMalformedUserListResponse(array $malformedData): void
+    {
+        $page = 1;
+        $mockResponse = new Response(200, [], json_encode($malformedData));
+
+        $this->guzzle
+            ->shouldReceive('request')
+            ->once()
+            ->with('GET', "users?page={$page}", [])
+            ->andReturn($mockResponse);
+
+        $this->expectException(ApiConnectionException::class);
+        $this->expectExceptionMessage('Failed to parse user list from API response.');
+
+        $this->service->listUsers($page);
+    }
+
+    #[Test]
+    public function listUsersThrowsConnectionExceptionOnTimeout(): void
+    {
+        $exception = new ConnectException(
+            message: 'Connection timed out',
+            request: $this->makeRequest('GET', "users"),
+        );
+
+        $this->guzzle
+            ->shouldReceive('request')
+            ->once()
+            ->andThrow($exception);
+
+        $this->expectException(ApiConnectionException::class);
+        $this->expectExceptionMessage('Failed to connect to ReqRes API');
+
+        $this->service->listUsers(1);
+    }
+
+    #[Test]
+    public function listUsersThrowsConnectionExceptionOn500(): void
+    {
+        $request = $this->makeRequest('GET', "users");
+        $exception = new ServerException(
+            message: 'Internal Server Error',
+            request: $request,
+            response: $this->makeResponse(code: 500),
+        );
+
+        $this->guzzle
+            ->shouldReceive('request')
+            ->once()
+            ->andThrow($exception);
+
+        $this->expectException(ApiConnectionException::class);
+        $this->expectExceptionMessage('Failed to connect to ReqRes API');
+
+        $this->service->listUsers(1);
+    }
+
+    public static function malformedUserListDataDataProvider(): array
+    {
+        return [
+            'missing_page' => [
+                'malformedData' => ['per_page' => 1, 'total' => 1, 'total_pages' => 1, 'data' => []]
+            ],
+            'missing_per_page' => [
+                'malformedData' => ['page' => 1, 'total' => 1, 'total_pages' => 1, 'data' => []]
+            ],
+            'missing_total' => [
+                'malformedData' => ['page' => 1, 'per_page' => 1, 'total_pages' => 1, 'data' => []]
+            ],
+            'missing_total_pages' => [
+                'malformedData' => ['page' => 1, 'per_page' => 1, 'total' => 1, 'data' => []]
+            ],
+            'missing_data' => [
+                'malformedData' => ['page' => 1, 'per_page' => 1, 'total' => 1, 'total_pages' => 1]
+            ],
+            'data_not_array' => [
+                'malformedData' => ['page' => 1, 'per_page' => 1, 'total' => 1, 'total_pages' => 1, 'data' => 'string']
+            ],
+        ];
+    }
+
+    private function loadFakeResponse(string $name): string|false
     {
         return file_get_contents("tests/fake-responses/{$name}.json");
     }

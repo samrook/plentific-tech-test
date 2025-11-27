@@ -10,9 +10,12 @@ use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\ServerException;
+use InvalidArgumentException;
+use SamRook\ReqResClient\DTO\UserCollectionDTO;
 use SamRook\ReqResClient\DTO\UserDTO;
 use SamRook\ReqResClient\Exceptions\ApiConnectionException;
 use SamRook\ReqResClient\Exceptions\UserNotFoundException;
+use Throwable;
 
 class UserClient
 {
@@ -73,6 +76,21 @@ class UserClient
             return (int) $responseData['id'];
         } catch (ConnectException | ServerException $e) {
             throw new ApiConnectionException('Failed to create user on ReqRes API', 0, $e);
+        }
+    }
+
+    public function listUsers(int $page): UserCollectionDTO
+    {
+        try {
+            $data = $this->makeRequest('GET', "users?page={$page}");
+
+            return UserCollectionDTO::fromArray($data);
+        } catch (ConnectException | ServerException $e) {
+            throw new ApiConnectionException('Failed to connect to ReqRes API', 0, $e);
+        } catch (InvalidArgumentException $e) {
+            throw new ApiConnectionException($e->getMessage(), 0, $e);
+        } catch (Throwable $e) {
+            throw new ApiConnectionException('Failed to parse user list from API response.', 0, $e);
         }
     }
 
