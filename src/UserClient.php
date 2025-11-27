@@ -25,10 +25,9 @@ class UserClient
         ClientInterface|null $client = null,
         private readonly string $baseUri = 'https://reqres.in/api/',
         private readonly string $apiKey = 'reqres-free-v1',
-        private int $maxRetries = 2,
     ) {
         $this->httpClient = $client ?? new Client([
-            'base_uri' => $baseUri,
+            'base_uri' => $this->baseUri,
             'timeout'  => 5.0,
             'headers' => [
                 'x-api-key' => $this->apiKey,
@@ -48,7 +47,7 @@ class UserClient
 
             /** @var array{id: int, email: string, first_name: string, last_name: string, avatar: string} $userData */
             $userData = $data['data'];
-            
+
             return UserDTO::fromArray($userData);
         } catch (ClientException $e) {
             if (404 === $e->getResponse()->getStatusCode()) {
@@ -94,6 +93,10 @@ class UserClient
         }
     }
 
+    /**
+     * @param array<string, mixed> $options
+     * @return array<string, mixed>
+     */
     private function makeRequest(string $method, string $uri, array $options = []): array
     {
         $response = $this->httpClient->request($method, $uri, $options);
