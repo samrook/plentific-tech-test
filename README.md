@@ -79,8 +79,8 @@ $newUserId = $client->createUser([
 
 echo "Created user with ID: {$newUserId}";
 ```
-> [!TIP]
-> This method passes the array payload directly to the API. Only the `name` and `job` keys are expected by the ReqRes API, and any other data provided may be ignored.
+> [!CAUTION]
+> The ReqRes API is designed to return the exact payload sent to it during creation. This means the client does **not** validate your input array. You should ensure your application performs strict input validation and filtering before calling `createUser()` to prevent accidental or malicious data from being transmitted.
 
 ## Features
 
