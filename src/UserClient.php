@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace SamRook\ReqResClient;
 
-use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\ServerException;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 use InvalidArgumentException;
 use SamRook\ReqResClient\DTO\UserCollectionDTO;
 use SamRook\ReqResClient\DTO\UserDTO;
@@ -22,17 +26,14 @@ class UserClient
     private ClientInterface $httpClient;
 
     public function __construct(
-        ClientInterface|null $client = null,
+        ?ClientInterface $client = null,
         private readonly string $baseUri = 'https://reqres.in/api/',
         private readonly string $apiKey = 'reqres-free-v1',
+        ?callable $handler = null,
+        int $maxRetries = 2,
+        ?callable $retryDelay = null,
     ) {
-        $this->httpClient = $client ?? new Client([
-            'base_uri' => $this->baseUri,
-            'timeout'  => 5.0,
-            'headers' => [
-                'x-api-key' => $this->apiKey,
-            ],
-        ]);
+        $this->httpClient = $client ?? $this->createDefaultClient($handler, $maxRetries, $retryDelay);
     }
 
     public function getUser(int $id): UserDTO
@@ -54,7 +55,7 @@ class UserClient
                 throw new UserNotFoundException("User with ID {$id} not found.");
             }
             throw new ApiConnectionException($e->getMessage(), $e->getCode(), $e);
-        } catch (ConnectException | ServerException $e) {
+        } catch (ConnectException|ServerException $e) {
             throw new ApiConnectionException('Failed to connect to ReqRes API', 0, $e);
         }
     }
@@ -66,14 +67,14 @@ class UserClient
     {
         try {
             $responseData = $this->makeRequest('POST', 'users', [
-                'json' => $data
+                'json' => $data,
             ]);
 
             if (!isset($responseData['id']) || !is_numeric($responseData['id'])) {
                 throw new ApiConnectionException('Invalid response when creating user: ID missing or not numeric.');
             }
             return (int) $responseData['id'];
-        } catch (ConnectException | ServerException $e) {
+        } catch (ConnectException|ServerException $e) {
             throw new ApiConnectionException('Failed to create user on ReqRes API', 0, $e);
         }
     }
@@ -84,7 +85,7 @@ class UserClient
             $data = $this->makeRequest('GET', "users?page={$page}");
 
             return UserCollectionDTO::fromArray($data);
-        } catch (ConnectException | ServerException $e) {
+        } catch (ConnectException|ServerException $e) {
             throw new ApiConnectionException('Failed to connect to ReqRes API', 0, $e);
         } catch (InvalidArgumentException $e) {
             throw new ApiConnectionException($e->getMessage(), 0, $e);
@@ -121,5 +122,40 @@ class UserClient
 
         /** @var array<string, mixed> $data */
         return $data;
+    }
+
+    private function createDefaultClient(?callable $handler, int $maxRetries, ?callable $retryDelay): ClientInterface
+    {
+        $stack = HandlerStack::create($handler);
+
+        $stack->push(Middleware::retry(function (
+            int $retries,
+            Request $request,
+            ?Response $response = null,
+            ?RequestException $exception = null,
+        ) use ($maxRetries): bool {
+            if ($retries >= $maxRetries) {
+                return false;
+            }
+
+            if ($exception instanceof ConnectException) {
+                return true;
+            }
+
+            if ($response && $response->getStatusCode() >= 500) {
+                return true;
+            }
+
+            return false;
+        }, $retryDelay));
+
+        return new Client([
+            'base_uri' => $this->baseUri,
+            'handler'  => $stack,
+            'timeout'  => 5.0,
+            'headers' => [
+                'x-api-key' => $this->apiKey,
+            ],
+        ]);
     }
 }
