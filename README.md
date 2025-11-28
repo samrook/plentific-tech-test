@@ -62,9 +62,10 @@ foreach ($users as $user) {
     echo $user->email . "\n";
 }
 
-// The DTO also contains pagination data
 echo "Page {$users->page} of {$users->totalPages}";
 ```
+> [!NOTE]
+> The `UserCollectionDTO` implements `IteratorAggregate` to make looping easy, but you can access the pagination metadata (`page`, `totalPages`, etc.) as public properties on the DTO itself.
 
 ### Create a user
 
@@ -78,6 +79,8 @@ $newUserId = $client->createUser([
 
 echo "Created user with ID: {$newUserId}";
 ```
+> [!TIP]
+> This method passes the array payload directly to the API. Only the `name` and `job` keys are expected by the ReqRes API, and any other data provided may be ignored.
 
 ## Features
 
@@ -96,6 +99,9 @@ The client uses `readonly` Data Transfer Objects (`UserDTO` and `UserCollectionD
 ### Dependency Injection
 
 The underlying `GuzzleHttp\ClientInterface` is injected into the `UserClient`. While the client creates a default Guzzle client for you, this allows you to pass in your own pre-configured Guzzle instance for advanced use cases or for mocking during tests.
+
+> [!WARNING]
+> The automatic retry logic (exponential backoff) is applied only to the internal, default Guzzle client. If you inject a custom `ClientInterface` instance, you are responsible for manually attaching the retry middleware to it if you wish to retain the resilient connection features.
 
 ## Error Handling
 
