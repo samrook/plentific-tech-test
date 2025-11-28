@@ -6,6 +6,4 @@ namespace SamRook\ReqResClient\Exceptions;
 
 use Exception;
 
-class ReqResClientException extends Exception
-{
-}
+class ReqResClientException extends Exception {}

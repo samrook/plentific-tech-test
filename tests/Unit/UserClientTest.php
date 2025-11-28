@@ -183,9 +183,9 @@ class UserClientTest extends TestCase
 
                     $payload = $options['json'];
 
-                    return $payload['name'] === 'Sam Rook' 
+                    return $payload['name'] === 'Sam Rook'
                         && $payload['job'] === 'Software Engineer';
-                })
+                }),
             )
             ->willReturn($mockResponse);
 
@@ -213,9 +213,9 @@ class UserClientTest extends TestCase
 
                     $payload = $options['json'];
 
-                    return $payload['name'] === 'Sam Rook' 
+                    return $payload['name'] === 'Sam Rook'
                         && $payload['job'] === 'Software Engineer';
-                })
+                }),
             )
             ->willReturn($mockResponse);
 
@@ -247,9 +247,9 @@ class UserClientTest extends TestCase
 
                     $payload = $options['json'];
 
-                    return $payload['name'] === 'Sam Rook' 
+                    return $payload['name'] === 'Sam Rook'
                         && $payload['job'] === 'Software Engineer';
-                })
+                }),
             )
             ->willThrowException($exception);
 
@@ -319,8 +319,8 @@ class UserClientTest extends TestCase
                 'per_page' => 1,
                 'total' => 1,
                 'total_pages' => 1,
-                'data' => 'not-an-array'
-            ])
+                'data' => 'not-an-array',
+            ]),
         );
 
         $this->guzzle
@@ -440,22 +440,22 @@ class UserClientTest extends TestCase
     {
         return [
             'missing_page' => [
-                'malformedData' => ['per_page' => 1, 'total' => 1, 'total_pages' => 1, 'data' => []]
+                'malformedData' => ['per_page' => 1, 'total' => 1, 'total_pages' => 1, 'data' => []],
             ],
             'missing_per_page' => [
-                'malformedData' => ['page' => 1, 'total' => 1, 'total_pages' => 1, 'data' => []]
+                'malformedData' => ['page' => 1, 'total' => 1, 'total_pages' => 1, 'data' => []],
             ],
             'missing_total' => [
-                'malformedData' => ['page' => 1, 'per_page' => 1, 'total_pages' => 1, 'data' => []]
+                'malformedData' => ['page' => 1, 'per_page' => 1, 'total_pages' => 1, 'data' => []],
             ],
             'missing_total_pages' => [
-                'malformedData' => ['page' => 1, 'per_page' => 1, 'total' => 1, 'data' => []]
+                'malformedData' => ['page' => 1, 'per_page' => 1, 'total' => 1, 'data' => []],
             ],
             'missing_data' => [
-                'malformedData' => ['page' => 1, 'per_page' => 1, 'total' => 1, 'total_pages' => 1]
+                'malformedData' => ['page' => 1, 'per_page' => 1, 'total' => 1, 'total_pages' => 1],
             ],
             'data_not_array' => [
-                'malformedData' => ['page' => 1, 'per_page' => 1, 'total' => 1, 'total_pages' => 1, 'data' => 'string']
+                'malformedData' => ['page' => 1, 'per_page' => 1, 'total' => 1, 'total_pages' => 1, 'data' => 'string'],
             ],
         ];
     }
@@ -476,7 +476,7 @@ class UserClientTest extends TestCase
         return json_decode($contents, true);
     }
 
-    private function makeResponse(string|null $filename = null, int $code = 200): Response
+    private function makeResponse(?string $filename = null, int $code = 200): Response
     {
         return new Response(
             status: $code,

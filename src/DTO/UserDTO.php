@@ -14,8 +14,7 @@ readonly class UserDTO implements JsonSerializable
         public string $firstName,
         public string $lastName,
         public string $avatar,
-    ) {
-    }
+    ) {}
 
     /**
      * @param array{

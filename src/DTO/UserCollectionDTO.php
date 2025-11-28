@@ -22,8 +22,7 @@ readonly class UserCollectionDTO implements JsonSerializable
         public int $total,
         public int $totalPages,
         public array $users,
-    ) {
-    }
+    ) {}
 
     /**
      * @param array<string, mixed> $data
@@ -54,8 +53,8 @@ readonly class UserCollectionDTO implements JsonSerializable
         $usersData = $data['data'];
 
         $users = array_map(
-            static fn (array $user): UserDTO => UserDTO::fromArray($user),
-            $usersData
+            static fn(array $user): UserDTO => UserDTO::fromArray($user),
+            $usersData,
         );
 
         return new self(

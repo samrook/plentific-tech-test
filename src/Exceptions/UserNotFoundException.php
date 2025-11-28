@@ -4,6 +4,4 @@ declare(strict_types=1);
 
 namespace SamRook\ReqResClient\Exceptions;
 
-class UserNotFoundException extends ReqResClientException
-{
-}
+class UserNotFoundException extends ReqResClientException {}
