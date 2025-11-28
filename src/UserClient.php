@@ -8,7 +8,6 @@ use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
@@ -132,7 +131,7 @@ class UserClient
             int $retries,
             Request $request,
             ?Response $response = null,
-            ?RequestException $exception = null,
+            ?Throwable $exception = null,
         ) use ($maxRetries): bool {
             if ($retries >= $maxRetries) {
                 return false;

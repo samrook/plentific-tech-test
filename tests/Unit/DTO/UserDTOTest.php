@@ -62,7 +62,7 @@ class UserDTOTest extends TestCase
                     'last_name' => 'Weaver',
                     'avatar' => 'https://reqres.in/img/faces/2-image.jpg',
                 ],
-            ]
+            ],
         ];
     }
 }

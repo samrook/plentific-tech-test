@@ -88,7 +88,7 @@ class UserClientRetryTest extends TestCase
 
         try {
             $service->getUser(self::USER_ID);
-        } catch(Throwable $e) {
+        } catch (Throwable $e) {
             $this->assertSame(0, $mockHandler->count());
             throw $e;
         }
