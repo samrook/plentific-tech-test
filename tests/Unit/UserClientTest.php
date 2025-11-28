@@ -10,10 +10,9 @@ use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
-use Mockery;
-use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use SamRook\ReqResClient\DTO\UserCollectionDTO;
 use SamRook\ReqResClient\DTO\UserDTO;
@@ -28,14 +27,14 @@ class UserClientTest extends TestCase
     private const int USER_ID_DOESNT_EXIST = 23;
     private const int CREATED_USER_ID = 102;
 
-    private ClientInterface&MockInterface $guzzle;
+    private ClientInterface&MockObject $guzzle;
     private UserClient $service;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->guzzle = Mockery::mock(ClientInterface::class);
+        $this->guzzle = $this->createMock(ClientInterface::class);
         $this->service = new UserClient(client: $this->guzzle);
     }
 
@@ -46,15 +45,10 @@ class UserClientTest extends TestCase
         $mockResponse = $this->makeResponse('get-user-2');
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
-            ->withArgs(function (string $method, string $uri) use ($userId): bool {
-                $this->assertSame('GET', $method);
-                $this->assertSame("users/{$userId}", $uri);
-
-                return true;
-            })
-            ->andReturn($mockResponse);
+            ->expects($this->once())
+            ->method('request')
+            ->with('GET', "users/{$userId}")
+            ->willReturn($mockResponse);
 
         $user = $this->service->getUser($userId);
 
@@ -76,15 +70,10 @@ class UserClientTest extends TestCase
         );
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
-            ->withArgs(function (string $method, string $uri) use ($userId): bool {
-                $this->assertSame('GET', $method);
-                $this->assertSame("users/{$userId}", $uri);
-
-                return true;
-            })
-            ->andThrow($exception);
+            ->expects($this->once())
+            ->method('request')
+            ->with('GET', "users/{$userId}")
+            ->willThrowException($exception);
 
         $this->expectException(UserNotFoundException::class);
         $this->expectExceptionMessage("User with ID {$userId} not found.");
@@ -104,15 +93,10 @@ class UserClientTest extends TestCase
         );
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
-            ->withArgs(function (string $method, string $uri) use ($userId): bool {
-                $this->assertSame('GET', $method);
-                $this->assertSame("users/{$userId}", $uri);
-
-                return true;
-            })
-            ->andThrow($exception);
+            ->expects($this->once())
+            ->method('request')
+            ->with('GET', "users/{$userId}")
+            ->willThrowException($exception);
 
         $this->expectException(ApiConnectionException::class);
         $this->expectExceptionMessage('Bad Request');
@@ -127,15 +111,10 @@ class UserClientTest extends TestCase
         $mockResponse = $this->makeResponse('create-user');
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
-            ->withArgs(function (string $method, string $uri) use ($userId): bool {
-                $this->assertSame('GET', $method);
-                $this->assertSame("users/{$userId}", $uri);
-
-                return true;
-            })
-            ->andReturn($mockResponse);
+            ->expects($this->once())
+            ->method('request')
+            ->with('GET', "users/{$userId}")
+            ->willReturn($mockResponse);
 
         $this->expectException(ApiConnectionException::class);
         $this->expectExceptionMessage('User data not found in API response.');
@@ -153,9 +132,9 @@ class UserClientTest extends TestCase
         );
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
-            ->andThrow($exception);
+            ->expects($this->once())
+            ->method('request')
+            ->willThrowException($exception);
 
         $this->expectException(ApiConnectionException::class);
         $this->expectExceptionMessage('Failed to connect to ReqRes API');
@@ -175,9 +154,9 @@ class UserClientTest extends TestCase
         );
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
-            ->andThrow($exception);
+            ->expects($this->once())
+            ->method('request')
+            ->willThrowException($exception);
 
         $this->expectException(ApiConnectionException::class);
         $this->expectExceptionMessage('Failed to connect to ReqRes API');
@@ -192,16 +171,23 @@ class UserClientTest extends TestCase
         $payload = $this->loadFakeRequest('create-user');
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
-            ->withArgs(function (string $method, string $uri, array $options) use ($payload): bool {
-                $this->assertSame('POST', $method);
-                $this->assertSame('users', $uri);
-                $this->assertSame(['json' => $payload], $options);
+            ->expects($this->once())
+            ->method('request')
+            ->with(
+                'POST',
+                'users',
+                $this->callback(function (array $options): bool {
+                    if (! isset($options['json'])) {
+                        return false;
+                    }
 
-                return true;
-            })
-            ->andReturn($mockResponse);
+                    $payload = $options['json'];
+
+                    return $payload['name'] === 'Sam Rook' 
+                        && $payload['job'] === 'Software Engineer';
+                })
+            )
+            ->willReturn($mockResponse);
 
         $newId = $this->service->createUser($payload);
 
@@ -215,16 +201,23 @@ class UserClientTest extends TestCase
         $mockResponse = $this->makeResponse('get-user-2', 201);
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
-            ->withArgs(function (string $method, string $uri, array $options) use ($payload): bool {
-                $this->assertSame('POST', $method);
-                $this->assertSame('users', $uri);
-                $this->assertSame(['json' => $payload], $options);
+            ->expects($this->once())
+            ->method('request')
+            ->with(
+                'POST',
+                'users',
+                $this->callback(function (array $options): bool {
+                    if (! isset($options['json'])) {
+                        return false;
+                    }
 
-                return true;
-            })
-            ->andReturn($mockResponse);
+                    $payload = $options['json'];
+
+                    return $payload['name'] === 'Sam Rook' 
+                        && $payload['job'] === 'Software Engineer';
+                })
+            )
+            ->willReturn($mockResponse);
 
         $this->expectException(ApiConnectionException::class);
         $this->expectExceptionMessage('Invalid response when creating user: ID missing or not numeric.');
@@ -242,16 +235,23 @@ class UserClientTest extends TestCase
         );
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
-            ->withArgs(function (string $method, string $uri, array $options) use ($payload): bool {
-                $this->assertSame('POST', $method);
-                $this->assertSame('users', $uri);
-                $this->assertSame(['json' => $payload], $options);
+            ->expects($this->once())
+            ->method('request')
+            ->with(
+                'POST',
+                'users',
+                $this->callback(function (array $options): bool {
+                    if (! isset($options['json'])) {
+                        return false;
+                    }
 
-                return true;
-            })
-            ->andThrow($exception);
+                    $payload = $options['json'];
+
+                    return $payload['name'] === 'Sam Rook' 
+                        && $payload['job'] === 'Software Engineer';
+                })
+            )
+            ->willThrowException($exception);
 
         $this->expectException(ApiConnectionException::class);
         $this->expectExceptionMessage('Failed to create user on ReqRes API');
@@ -266,10 +266,10 @@ class UserClientTest extends TestCase
         $mockResponse = $this->makeResponse("list-users-{$page}");
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
+            ->expects($this->once())
+            ->method('request')
             ->with('GET', "users?page={$page}", [])
-            ->andReturn($mockResponse);
+            ->willReturn($mockResponse);
 
         $userCollection = $this->service->listUsers($page);
 
@@ -296,10 +296,10 @@ class UserClientTest extends TestCase
         $mockResponse = $this->makeResponse('create-user', 200);
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
+            ->expects($this->once())
+            ->method('request')
             ->with('GET', "users?page={$page}", [])
-            ->andReturn($mockResponse);
+            ->willReturn($mockResponse);
 
         $this->expectException(ApiConnectionException::class);
         $this->expectExceptionMessage('Failed to parse user list from API response.');
@@ -324,10 +324,10 @@ class UserClientTest extends TestCase
         );
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
+            ->expects($this->once())
+            ->method('request')
             ->with('GET', "users?page={$page}", [])
-            ->andReturn($mockResponse);
+            ->willReturn($mockResponse);
 
         $this->expectException(ApiConnectionException::class);
         $this->expectExceptionMessage('Failed to parse user list from API response.');
@@ -343,10 +343,10 @@ class UserClientTest extends TestCase
         $mockResponse = new Response(200, [], json_encode($malformedData));
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
+            ->expects($this->once())
+            ->method('request')
             ->with('GET', "users?page={$page}", [])
-            ->andReturn($mockResponse);
+            ->willReturn($mockResponse);
 
         $this->expectException(ApiConnectionException::class);
         $this->expectExceptionMessage('Failed to parse user list from API response.');
@@ -363,9 +363,9 @@ class UserClientTest extends TestCase
         );
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
-            ->andThrow($exception);
+            ->expects($this->once())
+            ->method('request')
+            ->willThrowException($exception);
 
         $this->expectException(ApiConnectionException::class);
         $this->expectExceptionMessage('Failed to connect to ReqRes API');
@@ -384,9 +384,9 @@ class UserClientTest extends TestCase
         );
 
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
-            ->andThrow($exception);
+            ->expects($this->once())
+            ->method('request')
+            ->willThrowException($exception);
 
         $this->expectException(ApiConnectionException::class);
         $this->expectExceptionMessage('Failed to connect to ReqRes API');
@@ -398,9 +398,9 @@ class UserClientTest extends TestCase
     public function throwsAnExceptionWhenApiResponseIsEmpty(): void
     {
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
-            ->andReturn($this->makeResponse(null, 200));
+            ->expects($this->once())
+            ->method('request')
+            ->willReturn($this->makeResponse(null, 200));
 
         $this->expectException(ApiConnectionException::class);
         $this->expectExceptionMessage('API response was empty.');
@@ -412,9 +412,9 @@ class UserClientTest extends TestCase
     public function throwsAnExceptionWhenApiResponseIsNotValidJson(): void
     {
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
-            ->andReturn(new Response(200, body: 'invalid json'));
+            ->expects($this->once())
+            ->method('request')
+            ->willReturn(new Response(200, body: 'invalid json'));
 
         $this->expectException(ApiConnectionException::class);
         $this->expectExceptionMessage('API response is not valid JSON.');
@@ -426,9 +426,9 @@ class UserClientTest extends TestCase
     public function throwsAnExceptionWhenApiResponseIsNotAJsonObject(): void
     {
         $this->guzzle
-            ->shouldReceive('request')
-            ->once()
-            ->andReturn(new Response(200, body: '123'));
+            ->expects($this->once())
+            ->method('request')
+            ->willReturn(new Response(200, body: '123'));
 
         $this->expectException(ApiConnectionException::class);
         $this->expectExceptionMessage('API response did not contain a JSON object.');
