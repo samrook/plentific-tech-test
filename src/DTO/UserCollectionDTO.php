@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace SamRook\ReqResClient\DTO;
 
 use JsonSerializable;
+use ArrayIterator;
+use IteratorAggregate;
 use InvalidArgumentException;
 
-readonly class UserCollectionDTO implements JsonSerializable
+/**
+ * @template-implements IteratorAggregate<int, UserDTO>
+ */
+readonly class UserCollectionDTO implements JsonSerializable, IteratorAggregate
 {
     /**
-     * @param int $page
-     * @param int $perPage
-     * @param int $total
-     * @param int $totalPages
      * @param array<UserDTO> $users
      */
     public function __construct(
@@ -25,8 +26,15 @@ readonly class UserCollectionDTO implements JsonSerializable
     ) {}
 
     /**
+     * @return ArrayIterator<int, UserDTO>
+     */
+    public function getIterator(): ArrayIterator
+    {
+        return new ArrayIterator($this->users);
+    }
+
+    /**
      * @param array<string, mixed> $data
-     * @return self
      */
     public static function fromArray(array $data): self
     {

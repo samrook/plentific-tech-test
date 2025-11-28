@@ -69,6 +69,23 @@ class UserCollectionDTOTest extends TestCase
         UserCollectionDTO::fromArray(['data' => []]);
     }
 
+    #[Test]
+    #[DataProvider('userCollectionDataProvider')]
+    public function iteratesOverUsers(array $data): void
+    {
+        $expectedCount = count($data['data']);
+        $userCollectionDto = UserCollectionDTO::fromArray($data);
+        $iterations = 0;
+
+        foreach ($userCollectionDto as $user) {
+            $this->assertInstanceOf(UserDTO::class, $user);
+            $iterations++;
+        }
+
+        $this->assertSame($expectedCount, $iterations);
+        $this->assertSame($expectedCount, count($userCollectionDto->users));
+    }
+
     public static function userCollectionDataProvider(): array
     {
         return [
